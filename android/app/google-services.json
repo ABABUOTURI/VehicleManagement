@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1084093037838",
+    "project_id": "vehicleparking-510b5",
+    "storage_bucket": "vehicleparking-510b5.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1084093037838:android:14c0d6e488c17cb4b82b5f",
+        "android_client_info": {
+          "package_name": "com.example.vehicle"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzM22hjlspA4EpTdMeG9tTBt9POnVJ59I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
