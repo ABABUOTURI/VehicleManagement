@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:vehicle/Pages/CompanyManager/GenerateReport.dart';
 import 'package:vehicle/Pages/CompanyManager/SystemManagement.dart';
-import 'package:vehicle/Pages/CompanyManager/myprofile.dart';
-
-import 'package:vehicle/Pages/CompanyManager/VehicleRegistration.dart';
 import '../../Database/HiveAdminDb.dart';
 import 'package:vehicle/models/user.dart';
 import 'package:vehicle/models/vehicle.dart';
-import 'package:vehicle/models/parking_slot.dart'; // Import your models
+import 'package:vehicle/models/parking_slot.dart';
 
 class CompanyManagerDashboard extends StatefulWidget {
   final String email;
@@ -21,12 +18,12 @@ class CompanyManagerDashboard extends StatefulWidget {
 }
 
 class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
-  String userName = ''; // Store the user's name
+  String userName = '';
   int totalUsers = 0;
   int totalVehicles = 0;
   int occupiedSlots = 0;
   int totalSlots = 0;
-  double pendingPayments = 0.0;
+  double collectedPayments = 0.0;
 
   @override
   void initState() {
@@ -35,10 +32,9 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
     _fetchUsersData();
     _fetchVehicleData();
     _fetchParkingSlotData();
-    _fetchPaymentsData();
+    _fetchCollectedPayments();
   }
 
-  // Method to fetch the user's name
   Future<void> _fetchUserName() async {
     var userBox = await Hive.openBox<User>('users');
     User? user = userBox.get(widget.email);
@@ -49,7 +45,6 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
     }
   }
 
-  // Method to fetch the total number of registered users
   Future<void> _fetchUsersData() async {
     var userBox = await Hive.openBox<User>('users');
     setState(() {
@@ -57,7 +52,6 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
     });
   }
 
-  // Method to fetch the total number of registered vehicles
   Future<void> _fetchVehicleData() async {
     var vehicleBox = await Hive.openBox<Vehicle>('vehicles');
     setState(() {
@@ -65,7 +59,6 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
     });
   }
 
-  // Method to fetch parking slots data (occupied and total)
   Future<void> _fetchParkingSlotData() async {
     var parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
     setState(() {
@@ -76,11 +69,16 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
     });
   }
 
-  // Method to fetch pending payments data (for now, we assume it's pre-calculated)
-  Future<void> _fetchPaymentsData() async {
-    // Assuming this is some pre-calculated or manually added data in Hive
+  Future<void> _fetchCollectedPayments() async {
+    var vehicleBox = await Hive.openBox<Vehicle>('vehicles');
+    double totalCollected = 0.0;
+
+    for (var vehicle in vehicleBox.values) {
+      totalCollected += vehicle.paymentAmount ?? 0.0; // Assuming `paymentAmount` is a field in Vehicle model
+    }
+
     setState(() {
-      pendingPayments = 500.0; // Placeholder for the example
+      collectedPayments = totalCollected;
     });
   }
 
@@ -88,7 +86,7 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hello, $userName'), // Display user's name dynamically
+        title: Text('Hello, $userName'),
         leading: Builder(
           builder: (BuildContext context) {
             return IconButton(
@@ -110,13 +108,13 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
       ),
       drawer: Drawer(
         child: Container(
-          color: const Color(0xFFFCF6F5), // Bottom background color
+          color: const Color(0xFFFCF6F5),
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
               const DrawerHeader(
                 decoration: BoxDecoration(
-                  color: Color(0xFF63D1F6), // Top background color
+                  color: Color(0xFF63D1F6),
                 ),
                 child: Text(
                   'Company Manager',
@@ -125,17 +123,6 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
                     fontSize: 24,
                   ),
                 ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.person),
-                title: const Text('My Profile'),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => ProfilePage(email: widget.email)),
-                  );
-                },
               ),
               ListTile(
                 leading: const Icon(Icons.person_pin_sharp),
@@ -148,17 +135,7 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
                   );
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.directions_car),
-                title: const Text('Vehicle Management'),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => VehicleRegistrationPage()),
-                  );
-                },
-              ),
+             
               ListTile(
                 leading: const Icon(Icons.receipt),
                 title: const Text('Reports'),
@@ -192,7 +169,7 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
             children: [
               // Overview section
               Card(
-                color: const Color(0xFF63D1F6), // Background color for overview section
+                color: const Color(0xFF63D1F6),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -203,7 +180,7 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF585D61), // Text color
+                          color: Color(0xFF585D61),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -259,7 +236,7 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
               const SizedBox(height: 16),
               // Insights section
               Card(
-                color: const Color(0xFFDEAF4B), // Background color for insights section
+                color: const Color(0xFFDEAF4B),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -270,7 +247,7 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF585D61), // Text color
+                          color: Color(0xFF585D61),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -285,7 +262,7 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
                           title: const Text('Parking Utilization',
                               style: TextStyle(color: Color(0xFF585D61))),
                           subtitle: Text(
-                              '${(occupiedSlots / totalSlots * 100).toStringAsFixed(1)}% of parking slots are occupied',
+                              '${totalSlots > 0 ? (occupiedSlots / totalSlots * 100).toStringAsFixed(1) : '0.0'}% of parking slots are occupied',
                               style: const TextStyle(color: Color(0xFF585D61))),
                         ),
                       ),
@@ -298,9 +275,10 @@ class _CompanyManagerDashboardState extends State<CompanyManagerDashboard> {
                         child: ListTile(
                           leading: const Icon(Icons.attach_money,
                               color: Color(0xFF585D61)),
-                          title: const Text('Payments',
+                          title: const Text('Collected Payments',
                               style: TextStyle(color: Color(0xFF585D61))),
-                          subtitle: Text('Pending Payments: \$${pendingPayments.toStringAsFixed(2)}',
+                          subtitle: Text(
+                              'Ksh${collectedPayments.toStringAsFixed(2)}',
                               style: const TextStyle(color: Color(0xFF585D61))),
                         ),
                       ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // For formatting dates
+import 'package:hive/hive.dart';
+import 'package:intl/intl.dart';
+import 'package:vehicle/models/vehicle.dart';
+import 'package:vehicle/models/parking_slot.dart';
 
 class GenerateReportPage extends StatefulWidget {
   const GenerateReportPage({super.key});
@@ -13,25 +16,70 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
 
-  // Sample data for insights
-  int checkIns = 120;
-  int checkOuts = 100;
-  double revenue = 5000.0;
-  int occupancyRate = 60;
+  // Variables for real data from the database
+  int checkIns = 0;
+  int checkOuts = 0;
+  double revenue = 0.0;
+  int totalSlots = 0;
+  int occupiedSlots = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    // Open Hive boxes for data fetching
+    var vehicleBox = await Hive.openBox<Vehicle>('vehicles');
+    var parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
+
+    setState(() {
+      // Count total check-ins and check-outs based on timestamp range
+      checkIns = vehicleBox.values.where((vehicle) {
+        return vehicle.timestamp.isAfter(_startDate) &&
+            vehicle.timestamp.isBefore(_endDate);
+      }).length;
+
+      checkOuts = vehicleBox.values.where((vehicle) {
+        return vehicle.checkOutTime != null &&
+            vehicle.checkOutTime!.isAfter(_startDate) &&
+            vehicle.checkOutTime!.isBefore(_endDate);
+      }).length;
+
+      // Calculate total revenue (assuming each vehicle has a `paymentAmount` property)
+      revenue = vehicleBox.values.fold(0.0, (sum, vehicle) {
+        if (vehicle.timestamp.isAfter(_startDate) &&
+            vehicle.timestamp.isBefore(_endDate)) {
+          return sum + (vehicle.paymentAmount ?? 0.0);
+        }
+        return sum;
+      });
+
+      // Calculate total and occupied slots
+      totalSlots = parkingSlotBox.length;
+      occupiedSlots =
+          parkingSlotBox.values.where((slot) => slot.isOccupied).length;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    int occupancyRate = totalSlots > 0
+        ? ((occupiedSlots / totalSlots) * 100).round()
+        : 0; // Avoid division by zero
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Generate Report'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf), // PDF export icon
-            onPressed: _exportToPDF, // Call export to PDF method
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: _exportToPDF,
           ),
           IconButton(
-            icon: const Icon(Icons.table_chart), // Excel export icon
-            onPressed: _exportToExcel, // Call export to Excel method
+            icon: const Icon(Icons.table_chart),
+            onPressed: _exportToExcel,
           ),
         ],
       ),
@@ -59,7 +107,8 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
                   onChanged: (value) {
                     setState(() {
                       _selectedReportRange = value!;
-                      _updateDateRange(); // Update date range based on selection
+                      _updateDateRange();
+                      _fetchData(); // Refresh data when range is changed
                     });
                   },
                 ),
@@ -104,7 +153,7 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
               child: ListTile(
                 leading: const Icon(Icons.monetization_on),
                 title: const Text('Parking Revenue'),
-                subtitle: Text('Total Revenue: \$${revenue.toStringAsFixed(2)}'),
+                subtitle: Text('Total Revenue: Ksh${revenue.toStringAsFixed(2)}'),
               ),
             ),
             const SizedBox(height: 10),
@@ -130,10 +179,9 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
     );
   }
 
-  // Update date range based on the selected report range (Daily, Weekly, Monthly)
   void _updateDateRange() {
     if (_selectedReportRange == 'Daily') {
-      _startDate = DateTime.now();
+      _startDate = DateTime.now().subtract(const Duration(days: 1));
       _endDate = DateTime.now();
     } else if (_selectedReportRange == 'Weekly') {
       _startDate = DateTime.now().subtract(const Duration(days: 7));
@@ -144,7 +192,6 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
     }
   }
 
-  // Method to generate the report (dummy implementation)
   void _generateReport() {
     showDialog(
       context: context,
@@ -164,9 +211,7 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
     );
   }
 
-  // Method to export report to PDF (dummy implementation)
   void _exportToPDF() {
-    // Placeholder for actual PDF export functionality
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -184,9 +229,7 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
     );
   }
 
-  // Method to export report to Excel (dummy implementation)
   void _exportToExcel() {
-    // Placeholder for actual Excel export functionality
     showDialog(
       context: context,
       builder: (BuildContext context) {

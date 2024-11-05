@@ -34,7 +34,7 @@ class _VehicleRegistrationPageState extends State<VehicleRegistrationPage> {
         driverName: _driverNameController.text,
         vehicleType: _vehicleTypeController.text,
         licensePlate: _licensePlateController.text,
-        timestamp: DateTime.now(), phone: '', slotId: null!, vehicleColor: '',
+        timestamp: DateTime.now(), phone: '', slotId: null!, vehicleColor: '', ticketId: '',
       );
 
       // Open Hive box for vehicles and save the new vehicle

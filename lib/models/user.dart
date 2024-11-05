@@ -13,6 +13,8 @@ class User {
   @HiveField(2)
   final String role;
 
+  var key;
+
   User({
     required this.email,
     required this.password,

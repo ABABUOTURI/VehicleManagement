@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:vehicle/Pages/ParkingAttendant/CheckParkingTicket.dart';
 import 'package:vehicle/Pages/ParkingAttendant/ManageParking.dart';
 import 'package:vehicle/Pages/ParkingAttendant/ParkingAttendantNotifications.dart';
 import 'package:vehicle/Pages/ParkingAttendant/ParkingAttendantReport.dart';
-import 'package:vehicle/Pages/ParkingAttendant/vehicleRegistration.dart';
 import 'package:vehicle/models/vehicle.dart';
 import 'package:vehicle/models/parking_slot.dart';
+import 'package:vehicle/models/user.dart';
 
 class ParkingAttendantDashboard extends StatefulWidget {
   final String email;
@@ -20,59 +21,21 @@ class ParkingAttendantDashboard extends StatefulWidget {
 
 class _ParkingAttendantDashboardState extends State<ParkingAttendantDashboard> {
   String userName = ''; // Store the attendant's name
-  int totalVehicles = 0;
-  int totalTicketsIssued = 0;
-  int occupiedSlots = 0;
-  int totalSlots = 0;
-  int unpaidTickets = 0;
-  int overdueReports = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchAttendantName();
-    _fetchVehicleData();
-    _fetchParkingSlotData();
-    _fetchTicketsData();
   }
 
-  // Method to fetch the attendant's name
   Future<void> _fetchAttendantName() async {
-    var userBox = await Hive.openBox('users');
+    var userBox = await Hive.openBox<User>('users');
     var user = userBox.get(widget.email);
     if (user != null) {
       setState(() {
         userName = user.name;
       });
     }
-  }
-
-  // Method to fetch vehicle data
-  Future<void> _fetchVehicleData() async {
-    var vehicleBox = await Hive.openBox<Vehicle>('vehicles');
-    setState(() {
-      totalVehicles = vehicleBox.length;
-    });
-  }
-
-  // Method to fetch parking slot data
-  Future<void> _fetchParkingSlotData() async {
-    var parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
-    setState(() {
-      totalSlots = parkingSlotBox.length;
-      occupiedSlots = parkingSlotBox.values
-          .where((slot) => slot.isOccupied == true)
-          .length;
-    });
-  }
-
-  // Method to fetch ticket data (for unpaid and overdue tickets)
-  Future<void> _fetchTicketsData() async {
-    setState(() {
-      unpaidTickets = 5; // Placeholder for unpaid tickets count
-      overdueReports = 3; // Placeholder for overdue reports
-      totalTicketsIssued = 100; // Placeholder for total tickets issued
-    });
   }
 
   @override
@@ -110,17 +73,6 @@ class _ParkingAttendantDashboardState extends State<ParkingAttendantDashboard> {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.directions_car),
-                title: const Text('Register Vehicle'),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => ParkingVehicleRegistrationPage()),
-                  );
-                },
-              ),
-              ListTile(
                 leading: const Icon(Icons.check),
                 title: const Text('Check Parking Tickets'),
                 onTap: () {
@@ -138,14 +90,14 @@ class _ParkingAttendantDashboardState extends State<ParkingAttendantDashboard> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => ParkingAttendantGenerateReportPage()),
+                        builder: (context) => GenerateReportPage()),
                   );
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.local_parking),
                 title: const Text('Manage Parking'),
-               onTap: () {
+                onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -156,7 +108,7 @@ class _ParkingAttendantDashboardState extends State<ParkingAttendantDashboard> {
               ListTile(
                 leading: const Icon(Icons.notifications),
                 title: const Text('Notification Settings'),
-               onTap: () {
+                onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -191,22 +143,34 @@ class _ParkingAttendantDashboardState extends State<ParkingAttendantDashboard> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Vehicles Card
-                      Card(
-                        color: const Color(0xFF63D1F6),
-                        elevation: 4,
-                        shadowColor: Colors.grey[400],
-                        child: ListTile(
-                          leading: const Icon(Icons.directions_car,
-                              color: Color(0xFF585D61)),
-                          title: const Text('Currently Parked Vehicles',
-                              style: TextStyle(color: Color(0xFF585D61))),
-                          subtitle: Text('Total Vehicles: $totalVehicles',
-                              style: const TextStyle(color: Color(0xFF585D61))),
-                        ),
+
+                      // Real-time Vehicles Card
+                      ValueListenableBuilder(
+                        valueListenable: Hive.box<Vehicle>('vehicles').listenable(),
+                        builder: (context, Box<Vehicle> vehicleBox, _) {
+                          int totalVehicles = vehicleBox.length;
+                          return Card(
+                            color: const Color(0xFF63D1F6),
+                            elevation: 4,
+                            shadowColor: Colors.grey[400],
+                            child: ListTile(
+                              leading: const Icon(Icons.directions_car,
+                                  color: Color(0xFF585D61)),
+                              title: const Text('Currently Parked Vehicles',
+                                  style: TextStyle(color: Color(0xFF585D61))),
+                              subtitle: Text(
+                                totalVehicles > 0
+                                    ? 'Total Vehicles: $totalVehicles'
+                                    : 'No vehicles registered.',
+                                style: const TextStyle(color: Color(0xFF585D61)),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 10),
-                      // Tickets Card
+
+                      // Real-time Tickets Card (Assuming ticket data is part of vehicle data)
                       Card(
                         color: const Color(0xFF63D1F6),
                         elevation: 4,
@@ -216,31 +180,47 @@ class _ParkingAttendantDashboardState extends State<ParkingAttendantDashboard> {
                               color: Color(0xFF585D61)),
                           title: const Text('Parking Tickets',
                               style: TextStyle(color: Color(0xFF585D61))),
-                          subtitle: Text('Total Tickets Issued: $totalTicketsIssued',
-                              style: const TextStyle(color: Color(0xFF585D61))),
+                          subtitle: Text(
+                            'Total Tickets Issued: Placeholder data', // Placeholder
+                            style: const TextStyle(color: Color(0xFF585D61)),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 10),
-                      // Parking Utilization Card
-                      Card(
-                        color: const Color(0xFF63D1F6),
-                        elevation: 4,
-                        shadowColor: Colors.grey[400],
-                        child: ListTile(
-                          leading: const Icon(Icons.local_parking,
-                              color: Color(0xFF585D61)),
-                          title: const Text('Parking Utilization',
-                              style: TextStyle(color: Color(0xFF585D61))),
-                          subtitle: Text(
-                              'Occupied Slots: $occupiedSlots / $totalSlots',
-                              style: const TextStyle(color: Color(0xFF585D61))),
-                        ),
+
+                      // Real-time Parking Utilization Card
+                      ValueListenableBuilder(
+                        valueListenable: Hive.box<ParkingSlot>('parkingSlots').listenable(),
+                        builder: (context, Box<ParkingSlot> parkingSlotBox, _) {
+                          int totalSlots = parkingSlotBox.length;
+                          int occupiedSlots = parkingSlotBox.values
+                              .where((slot) => slot.isOccupied)
+                              .length;
+                          return Card(
+                            color: const Color(0xFF63D1F6),
+                            elevation: 4,
+                            shadowColor: Colors.grey[400],
+                            child: ListTile(
+                              leading: const Icon(Icons.local_parking,
+                                  color: Color(0xFF585D61)),
+                              title: const Text('Parking Utilization',
+                                  style: TextStyle(color: Color(0xFF585D61))),
+                              subtitle: Text(
+                                totalSlots > 0
+                                    ? 'Occupied Slots: $occupiedSlots / $totalSlots'
+                                    : 'No parking slots available.',
+                                style: const TextStyle(color: Color(0xFF585D61)),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
+
               // Alerts section
               Card(
                 color: const Color(0xFF63D1F6), // Alerts background color
@@ -258,7 +238,8 @@ class _ParkingAttendantDashboardState extends State<ParkingAttendantDashboard> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      // Unpaid Tickets Card
+
+                      // Placeholder Unpaid Tickets Card
                       Card(
                         color: const Color(0xFFDEAF4B),
                         elevation: 4,
@@ -268,12 +249,15 @@ class _ParkingAttendantDashboardState extends State<ParkingAttendantDashboard> {
                               const Icon(Icons.warning, color: Color(0xFF585D61)),
                           title: const Text('Unpaid Parking Tickets',
                               style: TextStyle(color: Color(0xFF585D61))),
-                          subtitle: Text('Total Unpaid Tickets: $unpaidTickets',
-                              style: const TextStyle(color: Color(0xFF585D61))),
+                          subtitle: Text(
+                            'Total Unpaid Tickets: Placeholder data', // Placeholder
+                            style: const TextStyle(color: Color(0xFF585D61)),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 10),
-                      // Overdue Reports Card
+
+                      // Placeholder Overdue Reports Card
                       Card(
                         color: const Color(0xFFDEAF4B),
                         elevation: 4,
@@ -283,8 +267,10 @@ class _ParkingAttendantDashboardState extends State<ParkingAttendantDashboard> {
                               color: Color(0xFF585D61)),
                           title: const Text('Overdue Reports',
                               style: TextStyle(color: Color(0xFF585D61))),
-                          subtitle: Text('Total Overdue Reports: $overdueReports',
-                              style: const TextStyle(color: Color(0xFF585D61))),
+                          subtitle: Text(
+                            'Total Overdue Reports: Placeholder data', // Placeholder
+                            style: const TextStyle(color: Color(0xFF585D61)),
+                          ),
                         ),
                       ),
                     ],

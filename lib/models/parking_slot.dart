@@ -1,16 +1,37 @@
 import 'package:hive/hive.dart';
 
-part 'parking_slot.g.dart';  // Hive will generate this file
+part 'parking_slot.g.dart';
 
-@HiveType(typeId: 2)
+@HiveType(typeId: 1)
 class ParkingSlot extends HiveObject {
   @HiveField(0)
-  String slotId;
+  int slotId;
 
   @HiveField(1)
   bool isOccupied;
 
-  ParkingSlot({required this.slotId, required this.isOccupied});
+  @HiveField(2)
+  DateTime? checkInTime;
 
-  get duration => null;
+  @HiveField(3)
+  DateTime? checkOutTime;
+
+  @HiveField(4)
+  String? vehicleDetails; // Optional field to store vehicle info if needed
+
+  @HiveField(5)
+  String? ownerName; // Optional field for driver's name if needed
+
+  @HiveField(6)
+  DateTime? addedTime; // Property to track when the slot was added
+
+  ParkingSlot({
+    required this.slotId,
+    this.isOccupied = false,
+    this.checkInTime,
+    this.checkOutTime,
+    this.vehicleDetails,
+    this.ownerName,
+    this.addedTime,
+  });
 }

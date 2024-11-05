@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 
 class ParkingAttendantNotificationsPage extends StatefulWidget {
   const ParkingAttendantNotificationsPage({super.key});
@@ -10,29 +11,16 @@ class ParkingAttendantNotificationsPage extends StatefulWidget {
 
 class _ParkingAttendantNotificationsPageState
     extends State<ParkingAttendantNotificationsPage> {
-  // Example notifications data
-  List<Map<String, String>> notifications = [
-    {
-      'title': 'Parking Lot Full',
-      'description': 'The parking lot is at full capacity.',
-      'type': 'Alert'
-    },
-    {
-      'title': 'Unpaid Ticket',
-      'description': 'Vehicle ABC-123 has unpaid parking dues.',
-      'type': 'Ticket'
-    },
-    {
-      'title': 'Overdue Parking',
-      'description': 'Vehicle XYZ-987 has overstayed the time limit.',
-      'type': 'Warning'
-    },
-    {
-      'title': 'Slot Reserved',
-      'description': 'Slot 15 has been reserved for VIP parking.',
-      'type': 'Reservation'
-    },
-  ];
+  List<Map<String, String>> notifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+   
+  }
+
+  // Method to fetch notifications from the Hive database
+ 
 
   // Helper function to get notification icon based on type
   IconData _getIcon(String type) {
@@ -50,22 +38,6 @@ class _ParkingAttendantNotificationsPageState
     }
   }
 
-  // Helper function to get color based on notification type
-  Color _getColor(String type) {
-    switch (type) {
-      case 'Alert':
-        return Colors.redAccent;
-      case 'Ticket':
-        return Colors.orange;
-      case 'Warning':
-        return Colors.amber;
-      case 'Reservation':
-        return Colors.blueAccent;
-      default:
-        return Colors.grey;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -75,48 +47,54 @@ class _ParkingAttendantNotificationsPageState
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ListView.builder(
-          itemCount: notifications.length,
-          itemBuilder: (context, index) {
-            var notification = notifications[index];
-            return Card(
-              color: _getColor(notification['type']!), // Set color based on type
-              elevation: 4,
-              shadowColor: Colors.grey[400],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListTile(
-                leading: Icon(
-                  _getIcon(notification['type']!),
-                  color: Colors.white,
-                  size: 40,
+        child: notifications.isEmpty
+            ? const Center(
+                child: Text(
+                  'No notifications available',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
                 ),
-                title: Text(
-                  notification['title']!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                subtitle: Text(
-                  notification['description']!,
-                  style: const TextStyle(color: Colors.white70),
-                ),
-                trailing: const Icon(
-                  Icons.arrow_forward_ios,
-                  color: Colors.white70,
-                  size: 20,
-                ),
-                onTap: () {
-                  // Action to view more details about the notification
-                  _showNotificationDetails(notification);
+              )
+            : ListView.builder(
+                itemCount: notifications.length,
+                itemBuilder: (context, index) {
+                  var notification = notifications[index];
+                  return Card(
+                    color: Colors.white, // White background for floating card
+                    elevation: 4,
+                    shadowColor: Colors.grey[400],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      leading: Icon(
+                        _getIcon(notification['type']!),
+                        color: Colors.blueGrey,
+                        size: 40,
+                      ),
+                      title: Text(
+                        notification['title']!,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      subtitle: Text(
+                        notification['description']!,
+                        style: const TextStyle(color: Colors.black87),
+                      ),
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
+                      onTap: () {
+                        _showNotificationDetails(notification);
+                      },
+                    ),
+                  );
                 },
               ),
-            );
-          },
-        ),
       ),
     );
   }

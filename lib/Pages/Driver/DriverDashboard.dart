@@ -1,9 +1,12 @@
- import 'package:flutter/material.dart';
-import 'package:vehicle/Pages/Driver/DRiverVehicleRegistration.dart';
+import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:intl/intl.dart';
 import 'package:vehicle/Pages/Driver/DriverCheckOutIn.dart';
 import 'package:vehicle/Pages/Driver/ParkingSlot.dart';
 import 'package:vehicle/Pages/Driver/Payment.dart';
 import 'package:vehicle/Pages/Driver/PrintRecipt.dart';
+import 'package:vehicle/models/parking_slot.dart';
+import 'package:vehicle/models/vehicle.dart';
 
 class DriverDashboard extends StatefulWidget {
   const DriverDashboard({super.key});
@@ -13,8 +16,73 @@ class DriverDashboard extends StatefulWidget {
 }
 
 class _DriverDashboardState extends State<DriverDashboard> {
+  late Box<ParkingSlot> parkingSlotBox;
+  late Box<Vehicle> vehicleBox;
+  List<ParkingSlot> parkingSlots = [];
+  List<Vehicle> vehicleHistory = [];
+  Vehicle? currentReservation;
+  List<String> notifications = [];
+  int newParkingSlotsCount = 0; // Count for new parking slots
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
+    vehicleBox = await Hive.openBox<Vehicle>('vehicles');
+
+    setState(() {
+      parkingSlots = parkingSlotBox.values.toList();
+      vehicleHistory = vehicleBox.values.toList();
+
+      // Find the current active reservation safely
+      currentReservation = vehicleHistory.firstWhere(
+        (vehicle) => parkingSlotBox.get(vehicle.slotId)?.isOccupied ?? false,
+         orElse: () => Vehicle(
+    driverName: '',
+    vehicleType: '',
+    licensePlate: '',
+    vehicleColor: '',
+    slotId: -1,
+    timestamp: DateTime.now(),
+    phone: '', ticketId: '',
+  ),
+      );
+
+      // Count the number of new parking slots added (example condition: slots added within the last day)
+      newParkingSlotsCount = parkingSlots.where((slot) {
+        return slot.addedTime != null && slot.addedTime!.isAfter(DateTime.now().subtract(Duration(days: 1)));
+      }).length;
+
+      // Populate notifications
+      _updateNotifications();
+    });
+  }
+
+  void _updateNotifications() {
+    notifications.clear();
+    if (currentReservation != null) {
+      notifications.add(
+          'Slot ${currentReservation!.slotId} is currently occupied. Check-in at ${DateFormat('yyyy-MM-dd – kk:mm').format(currentReservation!.timestamp)}');
+    } else {
+      notifications.add('No current reservations.');
+    }
+
+    // Notification for new parking slots added
+    if (newParkingSlotsCount > 0) {
+      notifications.add('New parking slots added: $newParkingSlotsCount');
+    }
+
+    notifications.add('Reminder: Ensure your payments are up to date.');
+  }
+
   @override
   Widget build(BuildContext context) {
+    double cardWidth = MediaQuery.of(context).size.width - 32; // Adjust to keep padding consistent
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Driver Dashboard'),
@@ -36,22 +104,22 @@ class _DriverDashboardState extends State<DriverDashboard> {
           children: [
             // Section 1: Parking Summary
             _buildSectionHeader('Parking Summary'),
-            _buildParkingSummary(),
+            SizedBox(width: cardWidth, child: _buildParkingSummaryCard()),
 
             const SizedBox(height: 16),
             // Section 2: Billing Information
             _buildSectionHeader('Billing Information'),
-            _buildBillingInfo(),
+            SizedBox(width: cardWidth, child: _buildBillingInfoCard()),
 
             const SizedBox(height: 16),
             // Section 3: Notifications
             _buildSectionHeader('Notifications'),
-            _buildNotifications(),
+            SizedBox(width: cardWidth, child: _buildNotificationsCard()),
 
             const SizedBox(height: 16),
             // Section 4: Parking History
             _buildSectionHeader('Parking History'),
-            _buildParkingHistory(),
+            SizedBox(width: cardWidth, child: _buildParkingHistoryCard()),
           ],
         ),
       ),
@@ -75,82 +143,54 @@ class _DriverDashboardState extends State<DriverDashboard> {
               ),
             ),
           ),
-           ListTile(
+          ListTile(
             leading: const Icon(Icons.login),
             title: const Text('Check-In Check-Out'),
-           onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => CheckInCheckOutPage()),
-                  );
-                },
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => CheckInCheckOutPage()),
+              );
+            },
           ),
-           ListTile(
+          ListTile(
             leading: const Icon(Icons.local_parking),
             title: const Text('Parking Slot'),
             onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => ParkingSlotsPage ()),
-                  );
-                },
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ParkingSlotsPage()),
+              );
+            },
           ),
-           ListTile(
+          ListTile(
             leading: const Icon(Icons.payment),
             title: const Text('Payment'),
-             onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => Payment()),
-                  );
-                },
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Payment()),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.receipt),
             title: const Text('Receipt'),
-             onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => PrintReceiptPage(checkInTime: null!, checkOutTime: null!, totalCost: null!,)),
-                  );
-                },
-          ),
-          ListTile(
-            leading: const Icon(Icons.credit_card),
-            title: const Text('Payment Methods'),
-             onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => CheckInCheckOutPage()),
-                  );
-                },
-          ),
-          ListTile(
-            leading: const Icon(Icons.directions_car),
-            title: const Text('Vehicle Registration'),
-             onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => DRVehicleRegistrationPage()),
-                  );
-                },
-          ),
-          ListTile(
-            leading: const Icon(Icons.insights),
-            title: const Text('Parking Insights'),
-             onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => CheckInCheckOutPage()),
-                  );
-                },
+            onTap: () {
+              if (currentReservation != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PrintReceiptPage(
+                      slotId: currentReservation!.slotId,
+                      checkInTime: currentReservation!.timestamp,
+                      checkOutTime: DateTime.now(), // Replace with actual data if available
+                      totalCost: 100.0, // Replace with calculated data
+                    ),
+                  ),
+                );
+              }
+            },
           ),
         ],
       ),
@@ -169,100 +209,125 @@ class _DriverDashboardState extends State<DriverDashboard> {
     );
   }
 
-  // Parking Summary
-  Widget _buildParkingSummary() {
+  // Parking Summary Card
+  Widget _buildParkingSummaryCard() {
     return Card(
-      color: const Color(0xFFDEAF4B),
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Padding(
-        padding: EdgeInsets.all(16.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: currentReservation != null
+            ? Text(
+                'Current Reservation: Slot ${currentReservation!.slotId}, check-in at ${DateFormat('yyyy-MM-dd – kk:mm').format(currentReservation!.timestamp)}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              )
+            : const Text('No current reservations.'),
+      ),
+    );
+  }
+
+  // Billing Information Card
+  Widget _buildBillingInfoCard() {
+    if (vehicleHistory.isEmpty) {
+      return Card(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('No billing information available.'),
+        ),
+      );
+    }
+
+    double pendingPayments = vehicleHistory.length * 100.0; // Example calculation
+    double lastPayment = 100.0; // Replace with actual last payment from history
+
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Upcoming Reservation: Slot B3 on 1st Floor',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              'Pending Payments: Ksh${pendingPayments.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 8),
-            Text('Current Reservation: Slot B10, ends in 2 hours'),
-            SizedBox(height: 8),
-            Text('Past Reservations: B5, B8, B2'),
+            const SizedBox(height: 8),
+            Text('Last Payment: Ksh${lastPayment.toStringAsFixed(2)} on 10/21/2024'),
           ],
         ),
       ),
     );
   }
 
-  // Billing Information
-  Widget _buildBillingInfo() {
+  // Notifications Card
+  Widget _buildNotificationsCard() {
     return Card(
-      color: const Color(0xFF63D1F6),
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Padding(
-        padding: EdgeInsets.all(16.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Pending Payments: \$50.00',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text('Last Payment: \$20.00 on 10/21/2024'),
-            SizedBox(height: 8),
-            Text('Receipts Available: View Past Payments'),
-          ],
+          children: notifications.isNotEmpty
+              ? notifications.map((notification) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text(notification),
+                  );
+                }).toList()
+              : const [Text('No notifications available.')],
         ),
       ),
     );
   }
 
-  // Notifications
-  Widget _buildNotifications() {
-    return Card(
-      color: const Color(0xFFE8EAF6),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('New parking spot available at B4 on 2nd floor.'),
-            SizedBox(height: 8),
-            Text('Reminder: Payment for Slot B5 is overdue by 2 days.'),
-          ],
+  // Parking History Card
+  Widget _buildParkingHistoryCard() {
+    if (vehicleHistory.isEmpty) {
+      return Card(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
         ),
-      ),
-    );
-  }
+        child: const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('No parking history available.'),
+        ),
+      );
+    }
 
-  // Parking History
-  Widget _buildParkingHistory() {
     return Card(
-      color: const Color(0xFF63D1F6),
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Padding(
-        padding: EdgeInsets.all(16.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'B5: 10/10/2024, 2 hours',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text('B8: 10/15/2024, 3 hours'),
-            SizedBox(height: 8),
-            Text('B2: 10/20/2024, 4 hours'),
-          ],
+          children: vehicleHistory.map((vehicle) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Slot ${vehicle.slotId}: ${DateFormat('yyyy-MM-dd – kk:mm').format(vehicle.timestamp)}, ${vehicle.timestamp.difference(vehicle.timestamp).inHours} hours',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+              ],
+            );
+          }).toList(),
         ),
       ),
     );

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:vehicle/models/user.dart';
-import 'package:vehicle/models/vehicle.dart';
 import 'package:vehicle/models/parking_slot.dart';
+import 'package:flutter/services.dart';
 
 class SystemManagementPage extends StatefulWidget {
   const SystemManagementPage({super.key});
@@ -20,13 +20,13 @@ class _SystemManagementPageState extends State<SystemManagementPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    
+    _tabController = TabController(length: 3, vsync: this); // Updated length to 3
+
     // Add listener to detect when the tab changes
     _tabController.addListener(() {
       setState(() {
         // Show the floating button only on the "Parking Slots" tab
-        showFloatingButton = _tabController.index == 2;
+        showFloatingButton = _tabController.index == 1;
       });
     });
   }
@@ -47,7 +47,6 @@ class _SystemManagementPageState extends State<SystemManagementPage>
           controller: _tabController,
           tabs: const [
             Tab(text: 'Users'),
-            Tab(text: 'Vehicles'),
             Tab(text: 'Parking Slots'),
             Tab(text: 'Settings'),
           ],
@@ -67,7 +66,6 @@ class _SystemManagementPageState extends State<SystemManagementPage>
         controller: _tabController,
         children: [
           _buildUserManagementTab(),
-          _buildVehicleManagementTab(),
           _buildParkingSlotManagementTab(),
           _buildSettingsTab(),
         ],
@@ -76,7 +74,7 @@ class _SystemManagementPageState extends State<SystemManagementPage>
           ? FloatingActionButton(
               onPressed: _addParkingSlot,
               backgroundColor: const Color(0xFF63D1F6), // Add Parking Slot button
-              child: Icon(Icons.add),
+              child: const Icon(Icons.add),
             )
           : null,
     );
@@ -138,69 +136,6 @@ class _SystemManagementPageState extends State<SystemManagementPage>
     );
   }
 
-  // Fetch and Display Vehicles from Hive
-  Widget _buildVehicleManagementTab() {
-    return ValueListenableBuilder(
-      valueListenable: Hive.box<Vehicle>('vehicles').listenable(),
-      builder: (context, Box<Vehicle> vehicleBox, _) {
-        if (vehicleBox.isEmpty) {
-          return const Center(child: Text("No vehicles registered"));
-        }
-
-        return SingleChildScrollView(
-          child: Column(
-            children: [
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: vehicleBox.length,
-                itemBuilder: (context, index) {
-                  Vehicle? vehicle = vehicleBox.getAt(index);
-                  return Card(
-                    color: const Color(0xFF63D1F6),
-                    elevation: 4,
-                    shadowColor: Colors.grey[400],
-                    child: ListTile(
-                      leading: const Icon(Icons.directions_car),
-                      title: Text(
-                          '${vehicle?.vehicleType} - ${vehicle?.licensePlate}'),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Driver: ${vehicle?.driverName}'),
-                          Text('Registered at: ${vehicle?.timestamp}'),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              // Implement Edit Vehicle
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () async {
-                              await vehicleBox.deleteAt(index);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Vehicle deleted')));
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   // Fetch and Display Parking Slots from Hive with Add Option
   Widget _buildParkingSlotManagementTab() {
     return ValueListenableBuilder(
@@ -210,24 +145,27 @@ class _SystemManagementPageState extends State<SystemManagementPage>
           return const Center(child: Text("No parking slots available"));
         }
 
+        // Listen for changes in the Hive box and fetch updated data
+        List<ParkingSlot> parkingSlots = parkingSlotBox.values.toList();
+
         return SingleChildScrollView(
           child: Column(
             children: [
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: parkingSlotBox.length,
+                itemCount: parkingSlots.length,
                 itemBuilder: (context, index) {
-                  ParkingSlot? slot = parkingSlotBox.getAt(index);
+                  ParkingSlot? slot = parkingSlots[index];
                   return Card(
-                    color: const Color(0xFFDEAF4B),
+                    color: slot.isOccupied ? Colors.green[300] : const Color(0xFFDEAF4B),
                     elevation: 4,
                     shadowColor: Colors.grey[400],
                     child: ListTile(
                       leading: const Icon(Icons.local_parking),
-                      title: Text('Slot: ${slot?.slotId}'),
+                      title: Text('Slot: ${slot.slotId}'),
                       subtitle: Text(
-                          'Availability: ${slot?.isOccupied == true ? "Occupied" : "Available"}'),
+                          'Availability: ${slot.isOccupied ? "Occupied" : "Available"}'),
                       trailing: IconButton(
                         icon: const Icon(Icons.edit),
                         onPressed: () {
@@ -295,6 +233,8 @@ class _SystemManagementPageState extends State<SystemManagementPage>
         title: const Text('Add Parking Slot'),
         content: TextField(
           controller: slotController,
+          keyboardType: TextInputType.number, // Ensure only numerical input
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: const InputDecoration(
             hintText: 'Enter Parking Slot ID',
           ),
@@ -308,19 +248,33 @@ class _SystemManagementPageState extends State<SystemManagementPage>
           ),
           TextButton(
             onPressed: () async {
-              final slotId = slotController.text;
+              if (slotController.text.isNotEmpty) {
+                final slotId = int.tryParse(slotController.text.trim()); // Parse to int
+                if (slotId != null) {
+                  var parkingSlotBox = Hive.box<ParkingSlot>('parkingSlots');
 
-              if (slotId.isNotEmpty) {
-                var parkingSlotBox = Hive.box<ParkingSlot>('parkingSlots');
-                await parkingSlotBox.add(
-                  ParkingSlot(slotId: slotId, isOccupied: false),
-                );
+                  // Check if the slot ID already exists to avoid duplicates
+                  bool slotExists = parkingSlotBox.values.any((slot) => slot.slotId == slotId);
+                  if (!slotExists) {
+                    await parkingSlotBox.add(
+                      ParkingSlot(slotId: slotId, isOccupied: false),
+                    );
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Parking Slot Added Successfully')),
-                );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Parking Slot Added Successfully')),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Slot ID already exists')),
+                    );
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Invalid slot ID')),
+                  );
+                }
+                Navigator.pop(context); // Close dialog
               }
-              Navigator.pop(context); // Close dialog
             },
             child: const Text('Save'),
           ),

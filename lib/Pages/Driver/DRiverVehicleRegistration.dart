@@ -3,24 +3,23 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:vehicle/models/vehicle.dart';
 import 'package:vehicle/models/parking_slot.dart';
+import 'dart:math'; // For generating unique ticket ID
 
-class DRVehicleRegistrationPage extends StatefulWidget {
-  const DRVehicleRegistrationPage({super.key});
+class ParkingVehicleRegistrationPage extends StatefulWidget {
+  const ParkingVehicleRegistrationPage({super.key});
 
   @override
-  _DRVehicleRegistrationPageState createState() =>
-      _DRVehicleRegistrationPageState();
+  _ParkingVehicleRegistrationPageState createState() =>
+      _ParkingVehicleRegistrationPageState();
 }
 
-class _DRVehicleRegistrationPageState extends State<DRVehicleRegistrationPage> {
+class _ParkingVehicleRegistrationPageState
+    extends State<ParkingVehicleRegistrationPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _driverNameController = TextEditingController();
+  final TextEditingController _driverPhoneController = TextEditingController();
   final TextEditingController _vehicleTypeController = TextEditingController();
   final TextEditingController _licensePlateController = TextEditingController();
-  final TextEditingController _vehicleColorController = TextEditingController();
-
-  int? selectedSlot;
-  List<int> availableSlots = [];
 
   @override
   void initState() {
@@ -28,31 +27,30 @@ class _DRVehicleRegistrationPageState extends State<DRVehicleRegistrationPage> {
     _fetchAvailableSlots();
   }
 
-  // Fetch available parking slots from Hive
+  // Method to fetch available parking slots from Hive
   Future<void> _fetchAvailableSlots() async {
-    var parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
-    setState(() {
-      // Fetch slots that are not occupied
-      availableSlots = parkingSlotBox.values
-          .where((slot) => !slot.isOccupied)
-          .map((slot) => slot.slotId)
-          .cast<int>()
-          .toList();
-    });
+    // Implementation to fetch parking slots if needed for other operations
   }
 
-  // Register the vehicle in Hive and assign a parking slot
+  // Method to register a vehicle
   Future<void> _registerVehicle() async {
-    if (_formKey.currentState!.validate() && selectedSlot != null) {
-      // Create a new Vehicle object
+    if (_formKey.currentState!.validate()) {
+      // Generate a unique ticket ID
+      String ticketId = _generateUniqueTicketId();
+
+      // Assume a slot ID is assigned automatically (for example, based on business logic)
+      int assignedSlotId = 1; // Replace with actual logic for selecting a slot
+
+      // Create new Vehicle object
       Vehicle newVehicle = Vehicle(
         driverName: _driverNameController.text,
+        phone: _driverPhoneController.text,
         vehicleType: _vehicleTypeController.text,
+        slotId: assignedSlotId,
+        timestamp: DateTime.now(),
         licensePlate: _licensePlateController.text,
-        vehicleColor: _vehicleColorController.text,
-        slotId: selectedSlot!,
-        timestamp: DateTime.now(), 
-        phone: '', 
+        vehicleColor: '',
+        ticketId: ticketId, // Store the unique ticket ID in the vehicle object
       );
 
       // Save vehicle to Hive
@@ -62,54 +60,77 @@ class _DRVehicleRegistrationPageState extends State<DRVehicleRegistrationPage> {
       // Mark the parking slot as occupied
       var parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
       ParkingSlot? selectedParkingSlot = parkingSlotBox.values.firstWhere(
-          (slot) => slot.slotId == selectedSlot);
-      selectedParkingSlot?.isOccupied = true;
-      parkingSlotBox.put(selectedSlot, selectedParkingSlot);
+          (slot) => slot.slotId == assignedSlotId,
+          orElse: () => null!);
+      selectedParkingSlot.isOccupied = true;
+      parkingSlotBox.put(assignedSlotId, selectedParkingSlot);
 
       // Clear form
       _clearForm();
 
-      // Show confirmation
-      _showConfirmationDialog();
+      // Show confirmation with the unique ticket ID
+      _showConfirmationDialog(ticketId);
+
+      // Update the parking slot UI color (automatic through ValueListenableBuilder)
     }
   }
 
-  // Clear input fields
+  // Generate a unique ticket ID
+  String _generateUniqueTicketId() {
+    var random = Random();
+    return 'TKT-${random.nextInt(999999).toString().padLeft(6, '0')}';
+  }
+
+  // Method to clear form fields
   void _clearForm() {
     _driverNameController.clear();
+    _driverPhoneController.clear();
     _vehicleTypeController.clear();
     _licensePlateController.clear();
-    _vehicleColorController.clear();
     setState(() {
-      selectedSlot = null;
+      // Reset state if needed
     });
   }
 
-  // Confirmation dialog
-  void _showConfirmationDialog() {
+  // Confirmation Dialog with print ticket option
+  void _showConfirmationDialog(String ticketId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Vehicle Registered Successfully"),
-        content: Text("The vehicle has been assigned to slot $selectedSlot."),
+        content: Text("Your ticket ID is $ticketId.\nDo you want to print the parking ticket?"),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
+              _printTicket();
             },
-            child: const Text("OK"),
+            child: const Text("Yes"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text("No"),
           ),
         ],
       ),
     );
   }
 
+  // Dummy method for printing ticket
+  void _printTicket() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Parking ticket printed successfully")),
+    );
+  }
+
   @override
   void dispose() {
     _driverNameController.dispose();
+    _driverPhoneController.dispose();
     _vehicleTypeController.dispose();
     _licensePlateController.dispose();
-    _vehicleColorController.dispose();
     super.dispose();
   }
 
@@ -126,12 +147,16 @@ class _DRVehicleRegistrationPageState extends State<DRVehicleRegistrationPage> {
           key: _formKey,
           child: ListView(
             children: [
-              // Driver Name Input
+              // Driver Name
               TextFormField(
                 controller: _driverNameController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Driver Name',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      vertical: 15.0, horizontal: 10.0),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -142,12 +167,37 @@ class _DRVehicleRegistrationPageState extends State<DRVehicleRegistrationPage> {
               ),
               const SizedBox(height: 16),
 
-              // Vehicle Type Input
+              // Driver Phone
+              TextFormField(
+                controller: _driverPhoneController,
+                decoration: InputDecoration(
+                  labelText: 'Driver Phone',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      vertical: 15.0, horizontal: 10.0),
+                ),
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter driver\'s phone number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Vehicle Type
               TextFormField(
                 controller: _vehicleTypeController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Vehicle Type',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      vertical: 15.0, horizontal: 10.0),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -158,59 +208,20 @@ class _DRVehicleRegistrationPageState extends State<DRVehicleRegistrationPage> {
               ),
               const SizedBox(height: 16),
 
-              // License Plate Input
+              // License Plate
               TextFormField(
                 controller: _licensePlateController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'License Plate',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      vertical: 15.0, horizontal: 10.0),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter license plate';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Vehicle Color Input
-              TextFormField(
-                controller: _vehicleColorController,
-                decoration: const InputDecoration(
-                  labelText: 'Vehicle Color',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter vehicle color';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Parking Slot Dropdown
-              DropdownButtonFormField<int>(
-                decoration: const InputDecoration(
-                  labelText: 'Select Parking Slot',
-                  border: OutlineInputBorder(),
-                ),
-                value: selectedSlot,
-                items: availableSlots
-                    .map((slot) => DropdownMenuItem(
-                          value: slot,
-                          child: Text('Slot B$slot'),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedSlot = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return 'Please select a parking slot';
                   }
                   return null;
                 },
@@ -221,10 +232,14 @@ class _DRVehicleRegistrationPageState extends State<DRVehicleRegistrationPage> {
               ElevatedButton(
                 onPressed: _registerVehicle,
                 style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 15.0),
                   backgroundColor: const Color(0xFF63D1F6),
-                  padding: const EdgeInsets.all(16.0),
+                  textStyle: const TextStyle(color: Colors.black),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: Text('Register Vehicle'),
+                child: const Text('Register Vehicle'),
               ),
             ],
           ),

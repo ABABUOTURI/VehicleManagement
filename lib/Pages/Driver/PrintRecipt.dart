@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class PrintReceiptPage extends StatefulWidget {
+  final int slotId; // Slot ID to show the booked slot number
   final DateTime checkInTime;
   final DateTime checkOutTime;
-  final double totalCost;
-  final double additionalCharges;
+  final double hourlyRate; // Hourly rate for calculating total cost
 
-  const PrintReceiptPage({super.key, 
+  const PrintReceiptPage({
+    super.key,
+    required this.slotId,
     required this.checkInTime,
     required this.checkOutTime,
-    required this.totalCost,
-    this.additionalCharges = 0.0,
+    this.hourlyRate = 100.0, required double totalCost, // Default rate set to 100 Ksh per hour
   });
 
   @override
@@ -28,6 +29,13 @@ class _PrintReceiptPageState extends State<PrintReceiptPage> {
   String _calculateTimeParked() {
     Duration timeSpent = widget.checkOutTime.difference(widget.checkInTime);
     return "${timeSpent.inHours} hours, ${timeSpent.inMinutes % 60} minutes";
+  }
+
+  // Method to calculate total cost based on time parked
+  double _calculateTotalCost() {
+    Duration timeSpent = widget.checkOutTime.difference(widget.checkInTime);
+    double totalCost = (timeSpent.inMinutes / 60) * widget.hourlyRate;
+    return totalCost;
   }
 
   // Method to handle digital receipt (email option)
@@ -48,6 +56,8 @@ class _PrintReceiptPageState extends State<PrintReceiptPage> {
 
   @override
   Widget build(BuildContext context) {
+    double totalCost = _calculateTotalCost();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Parking Receipt'),
@@ -78,17 +88,13 @@ class _PrintReceiptPageState extends State<PrintReceiptPage> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    Text('Slot Booked: ${widget.slotId}'),
                     Text('Time In: ${_formatDateTime(widget.checkInTime)}'),
                     Text('Time Out: ${_formatDateTime(widget.checkOutTime)}'),
                     const SizedBox(height: 8),
                     Text('Total Time Parked: ${_calculateTimeParked()}'),
                     const SizedBox(height: 8),
-                    Text('Total Cost: \$${widget.totalCost.toStringAsFixed(2)}'),
-                    if (widget.additionalCharges > 0)
-                      Text(
-                        'Additional Charges: \$${widget.additionalCharges.toStringAsFixed(2)}',
-                        style: const TextStyle(color: Colors.redAccent),
-                      ),
+                    Text('Total Cost: Ksh${totalCost.toStringAsFixed(2)}'),
                   ],
                 ),
               ),

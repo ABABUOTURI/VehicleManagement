@@ -1,8 +1,8 @@
 import 'package:hive/hive.dart';
 
-part 'vehicle.g.dart';  // Hive will generate this file
+part 'vehicle.g.dart';
 
-@HiveType(typeId: 1)
+@HiveType(typeId: 2)
 class Vehicle extends HiveObject {
   @HiveField(0)
   String driverName;
@@ -14,12 +14,32 @@ class Vehicle extends HiveObject {
   String licensePlate;
 
   @HiveField(3)
+  String vehicleColor;
+
+  @HiveField(4)
+  int slotId;
+
+  @HiveField(5)
   DateTime timestamp;
+
+  @HiveField(6)
+  String phone;
+
+  @HiveField(7)
+  double? paymentAmount;
+
+  @HiveField(8)
+  DateTime? checkOutTime;
 
   Vehicle({
     required this.driverName,
     required this.vehicleType,
     required this.licensePlate,
-    required this.timestamp, required String phone, required int slotId, required String vehicleColor,
+    required this.vehicleColor,
+    required this.slotId,
+    required this.timestamp,
+    this.phone = '',
+    this.paymentAmount,
+    this.checkOutTime, required String ticketId,
   });
 }

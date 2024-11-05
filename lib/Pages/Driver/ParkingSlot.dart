@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:vehicle/models/parking_slot.dart';
+import 'package:vehicle/Pages/Driver/DRiverVehicleRegistration.dart';
 
 class ParkingSlotsPage extends StatefulWidget {
   const ParkingSlotsPage({super.key});
@@ -10,69 +12,77 @@ class ParkingSlotsPage extends StatefulWidget {
 }
 
 class _ParkingSlotsPageState extends State<ParkingSlotsPage> {
+  late Box<ParkingSlot> parkingSlotBox;
   List<ParkingSlot> parkingSlots = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchParkingSlots();
+    _initializeBox();
   }
 
-  // Fetch parking slots from Hive or database
-  Future<void> _fetchParkingSlots() async {
-    var parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
+  Future<void> _initializeBox() async {
+    parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
+    _fetchParkingSlots();
+
+    // Listen for changes in the Hive box and refresh the state
+    parkingSlotBox.listenable().addListener(_fetchParkingSlots);
+  }
+
+  // Fetch parking slots from Hive
+  void _fetchParkingSlots() {
     setState(() {
       parkingSlots = parkingSlotBox.values.toList();
     });
   }
 
   @override
+  void dispose() {
+    // Clean up the Hive listener when the widget is disposed
+    parkingSlotBox.listenable().removeListener(_fetchParkingSlots);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    int totalSlots = parkingSlots.length;
+    int bookedSlots = parkingSlots.where((slot) => slot.isOccupied).length;
+    int availableSlots = totalSlots - bookedSlots;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pick Parking Spot!'),
         backgroundColor: const Color(0xFF63D1F6),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              // Navigate to Profile Page or other actions
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Floors selection buttons
+            // Display total available and booked slots
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF63D1F6),
+                  Text(
+                    'Total Available: $availableSlots',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: Text('1st Floor'),
                   ),
-                  ElevatedButton(
-                    onPressed: () {},
-                    child: const Text('2nd Floor'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {},
-                    child: const Text('3rd Floor'),
+                  Text(
+                    'Total Booked: $bookedSlots',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
             ),
-
-            // Parking slots display
             GridView.builder(
-              physics: const NeverScrollableScrollPhysics(), // Disable GridView scrolling
-              shrinkWrap: true, // Ensure GridView fits inside the SingleChildScrollView
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
               padding: const EdgeInsets.all(8.0),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
@@ -83,23 +93,50 @@ class _ParkingSlotsPageState extends State<ParkingSlotsPage> {
               itemCount: parkingSlots.length,
               itemBuilder: (context, index) {
                 final slot = parkingSlots[index];
-                return ParkingSlotWidget(slot: slot);
+                return GestureDetector(
+                  onTap: () async {
+                    if (!slot.isOccupied) {
+                      bool? result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ParkingVehicleRegistrationPage(),
+                        ),
+                      );
+                      if (result == true) {
+                        // Set slot as occupied and save to Hive
+                        slot.isOccupied = true;
+                        await parkingSlotBox.put(slot.slotId, slot);
+                        _fetchParkingSlots();
+                      }
+                    } else {
+                      _showSlotOccupiedMessage();
+                    }
+                  },
+                  child: ParkingSlotWidget(slot: slot),
+                );
               },
             ),
           ],
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: ElevatedButton(
-          onPressed: () {
-            // Continue to next action
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF63D1F6),
+    );
+  }
+
+  // Show message if a user tries to book an already occupied slot
+  void _showSlotOccupiedMessage() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Slot Unavailable'),
+        content: const Text('This slot is already booked. Please choose another slot.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('OK'),
           ),
-          child: Text('Continue'),
-        ),
+        ],
       ),
     );
   }
@@ -124,7 +161,14 @@ class ParkingSlotWidget extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (isBooked)
-              Image.asset('assets/vehicle.png', height: 40)
+              const Text(
+                'Occupied',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              )
             else
               const Icon(Icons.directions_car, size: 40),
             const SizedBox(height: 8),

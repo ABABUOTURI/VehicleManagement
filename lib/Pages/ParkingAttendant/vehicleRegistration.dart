@@ -50,7 +50,7 @@ class _ParkingVehicleRegistrationPageState
         vehicleType: _vehicleTypeController.text,
         slotId: selectedSlot!,
         timestamp: DateTime.now(),
-        licensePlate: '', vehicleColor: '',
+        licensePlate: '', vehicleColor: '', ticketId: '',
       );
 
       // Save vehicle to Hive

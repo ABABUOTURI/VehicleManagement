@@ -8,7 +8,7 @@ part of 'parking_slot.dart';
 
 class ParkingSlotAdapter extends TypeAdapter<ParkingSlot> {
   @override
-  final int typeId = 2;
+  final int typeId = 1;
 
   @override
   ParkingSlot read(BinaryReader reader) {
@@ -17,19 +17,34 @@ class ParkingSlotAdapter extends TypeAdapter<ParkingSlot> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return ParkingSlot(
-      slotId: fields[0] as String,
+      slotId: fields[0] as int,
       isOccupied: fields[1] as bool,
+      checkInTime: fields[2] as DateTime?,
+      checkOutTime: fields[3] as DateTime?,
+      vehicleDetails: fields[4] as String?,
+      ownerName: fields[5] as String?,
+      addedTime: fields[6] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ParkingSlot obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.slotId)
       ..writeByte(1)
-      ..write(obj.isOccupied);
+      ..write(obj.isOccupied)
+      ..writeByte(2)
+      ..write(obj.checkInTime)
+      ..writeByte(3)
+      ..write(obj.checkOutTime)
+      ..writeByte(4)
+      ..write(obj.vehicleDetails)
+      ..writeByte(5)
+      ..write(obj.ownerName)
+      ..writeByte(6)
+      ..write(obj.addedTime);
   }
 
   @override

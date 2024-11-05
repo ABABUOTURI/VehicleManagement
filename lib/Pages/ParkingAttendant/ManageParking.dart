@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:vehicle/models/parking_slot.dart';
 import 'package:vehicle/models/vehicle.dart';
+import 'package:intl/intl.dart';
 
 class PAManageParkingPage extends StatefulWidget {
   const PAManageParkingPage({super.key});
@@ -12,101 +13,85 @@ class PAManageParkingPage extends StatefulWidget {
 }
 
 class _PAManageParkingPageState extends State<PAManageParkingPage> {
-  List<ParkingSlot> parkingSlots = [];
-  bool isFull = false;
+  late Box<ParkingSlot> parkingSlotBox;
+  late Box<Vehicle> vehicleBox;
 
   @override
   void initState() {
     super.initState();
-    _fetchParkingSlots();
+    _openHiveBox();
   }
 
-  // Fetch parking slot availability data
-  Future<void> _fetchParkingSlots() async {
-    var parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
-    setState(() {
-      parkingSlots = parkingSlotBox.values.toList();
-      isFull = parkingSlots.every((slot) => slot.isOccupied == true);
-    });
+  // Open the Hive box and set up listeners
+  Future<void> _openHiveBox() async {
+    parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
+    vehicleBox = await Hive.openBox<Vehicle>('vehicles');
+    setState(() {}); // Trigger initial UI update
   }
 
-  // Check-in a vehicle (mark slot as occupied)
-  Future<void> _checkInVehicle(int slotId) async {
-    var parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
-    ParkingSlot? selectedSlot = parkingSlotBox.values
-        .firstWhere((slot) => slot.slotId == slotId, orElse: () => null!);
+  // Method to display vehicle details and approve check-out
+  Future<void> _showVehicleDetailsAndApproveCheckOut(int slotId) async {
+    ParkingSlot? selectedSlot = parkingSlotBox.get(slotId);
 
-    if (!selectedSlot.isOccupied) {
-      selectedSlot.isOccupied = true;
-      parkingSlotBox.put(slotId, selectedSlot);
-      _fetchParkingSlots();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vehicle checked in to slot $slotId')),
-      );
-    }
-  }
+    if (selectedSlot != null && selectedSlot.isOccupied) {
+      // Find the vehicle parked in the slot
+      Vehicle? vehicle;
+try {
+  vehicle = vehicleBox.values.firstWhere(
+    (veh) => veh.slotId == slotId && veh.timestamp.isBefore(DateTime.now()),
+  );
+} catch (e) {
+  // Handle the case where no matching element is found
+  vehicle = null;
+}
 
-  // Check-out a vehicle (mark slot as available)
-  Future<void> _checkOutVehicle(int slotId) async {
-    var parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
-    ParkingSlot? selectedSlot = parkingSlotBox.values
-        .firstWhere((slot) => slot.slotId == slotId, orElse: () => null!);
-
-    if (selectedSlot.isOccupied) {
-      selectedSlot.isOccupied = false;
-      parkingSlotBox.put(slotId, selectedSlot);
-      _fetchParkingSlots();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vehicle checked out from slot $slotId')),
-      );
-    }
-  }
-
-  // Reserve a parking slot for VIP or specific users
-  void _reserveSlot(int slotId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Reserve Parking Slot $slotId"),
-        content: const Text("Reserve this slot for VIP or specific user?"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Slot $slotId reserved')),
-              );
-            },
-            child: const Text("Yes"),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text("No"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Show alert if parking is full
-  void _showFullCapacityAlert() {
-    if (isFull) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Parking Full"),
-          content: const Text("Parking is at full capacity. No available slots."),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text("Okay"),
+      if (vehicle != null) {
+        // Display vehicle details and check-out prompt
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text("Details for Slot $slotId"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Driver Name: ${vehicle!.driverName}'),
+                Text('License Plate: ${vehicle.licensePlate}'),
+                Text('Check-in Time: ${DateFormat('yyyy-MM-dd – kk:mm').format(vehicle.timestamp)}'),
+              ],
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  selectedSlot.isOccupied = false;
+                  selectedSlot.checkOutTime = DateTime.now();
+                  await parkingSlotBox.put(slotId, selectedSlot);
+
+                  setState(() {}); // Update the UI after the change
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Vehicle checked out from slot $slotId')),
+                  );
+                },
+                child: const Text("Approve Check-Out"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text("Cancel"),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No vehicle data found for this slot')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This slot is already available')),
       );
     }
   }
@@ -120,78 +105,77 @@ class _PAManageParkingPageState extends State<PAManageParkingPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Real-time Parking Availability
-            const Text(
-              'Parking Slot Availability',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
+        child: ValueListenableBuilder(
+          valueListenable: Hive.box<ParkingSlot>('parkingSlots').listenable(),
+          builder: (context, Box<ParkingSlot> box, _) {
+            if (box.isEmpty) {
+              return const Center(child: Text("No parking slots available"));
+            }
 
-            // Grid showing parking slots
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 16.0,
-                  mainAxisSpacing: 16.0,
-                  childAspectRatio: 2.0,
+            List<ParkingSlot> parkingSlots = box.values.toList();
+            bool isFull = parkingSlots.every((slot) => slot.isOccupied);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Parking Slot Availability',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                itemCount: parkingSlots.length,
-                itemBuilder: (context, index) {
-                  ParkingSlot slot = parkingSlots[index];
-                  return Card(
-                    color: slot.isOccupied ? Colors.red[300] : Colors.green[300],
-                    elevation: 4,
-                    child: InkWell(
-                      onTap: () {
-                        if (!slot.isOccupied) {
-                          _checkInVehicle(slot.slotId as int);
-                        } else {
-                          _checkOutVehicle(slot.slotId as int);
-                        }
-                      },
-                      onLongPress: () {
-                        _reserveSlot(slot.slotId as int);
-                      },
-                      child: Center(
-                        child: Text(
-                          'Slot ${slot.slotId}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                const SizedBox(height: 16),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 16.0,
+                      mainAxisSpacing: 16.0,
+                      childAspectRatio: 2.0,
+                    ),
+                    itemCount: parkingSlots.length,
+                    itemBuilder: (context, index) {
+                      ParkingSlot slot = parkingSlots[index];
+                      bool isOccupied = slot.isOccupied;
+
+                      return Card(
+                        color: isOccupied ? Colors.green[300] : Colors.yellow[300],
+                        elevation: 4,
+                        child: InkWell(
+                          onTap: () {
+                            if (isOccupied) {
+                              _showVehicleDetailsAndApproveCheckOut(slot.slotId);
+                            }
+                          },
+                          child: Center(
+                            child: Text(
+                              'Slot ${slot.slotId}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Alerts for full capacity
-            if (isFull)
-              Card(
-                color: Colors.redAccent,
-                child: ListTile(
-                  leading: const Icon(Icons.warning, color: Colors.white),
-                  title: const Text(
-                    'Parking is at full capacity!',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.info, color: Colors.white),
-                    onPressed: _showFullCapacityAlert,
+                      );
+                    },
                   ),
                 ),
-              ),
-          ],
+                if (isFull)
+                  Card(
+                    color: Colors.redAccent,
+                    child: ListTile(
+                      leading: const Icon(Icons.warning, color: Colors.white),
+                      title: const Text(
+                        'Parking is at full capacity!',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
