@@ -31,6 +31,9 @@ class Vehicle extends HiveObject {
   @HiveField(8)
   DateTime? checkOutTime;
 
+  @HiveField(9) // New field for email
+  String email; // Add the email field
+
   Vehicle({
     required this.driverName,
     required this.vehicleType,
@@ -40,6 +43,7 @@ class Vehicle extends HiveObject {
     required this.timestamp,
     this.phone = '',
     this.paymentAmount,
-    this.checkOutTime, required String ticketId,
+    this.checkOutTime,
+    required this.email, required String ticketId, // Add email to the constructor
   });
 }

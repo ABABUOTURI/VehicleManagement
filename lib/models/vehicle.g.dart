@@ -25,7 +25,7 @@ class VehicleAdapter extends TypeAdapter<Vehicle> {
       timestamp: fields[5] as DateTime,
       phone: fields[6] as String,
       paymentAmount: fields[7] as double?,
-      checkOutTime: fields[8] as DateTime?, ticketId: '',
+      checkOutTime: fields[8] as DateTime?, ticketId: '', email: '',
     );
   }
 

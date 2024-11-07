@@ -23,13 +23,17 @@ class ParkingTicketAdapter extends TypeAdapter<ParkingTicket> {
       slotId: fields[3] as int,
       issuedAt: fields[4] as DateTime,
       paidAt: fields[5] as DateTime?,
+      ownerName: fields[6] as String, // Read ownerName
+      checkOutTime: fields[7] as DateTime?, // Read checkOutTime
+      timestamp: fields[8] as String, // Read timestamp if needed
     );
   }
 
   @override
   void write(BinaryWriter writer, ParkingTicket obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(
+          9) // Updated number of fields to match the number of @HiveField annotations
       ..writeByte(0)
       ..write(obj.ticketNumber)
       ..writeByte(1)
@@ -41,7 +45,13 @@ class ParkingTicketAdapter extends TypeAdapter<ParkingTicket> {
       ..writeByte(4)
       ..write(obj.issuedAt)
       ..writeByte(5)
-      ..write(obj.paidAt);
+      ..write(obj.paidAt)
+      ..writeByte(6) // Write ownerName
+      ..write(obj.ownerName)
+      ..writeByte(7) // Write checkOutTime
+      ..write(obj.checkOutTime)
+      ..writeByte(8) // Write timestamp if needed
+      ..write(obj.timestamp);
   }
 
   @override

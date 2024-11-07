@@ -48,7 +48,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
     vehicleColor: '',
     slotId: -1,
     timestamp: DateTime.now(),
-    phone: '', ticketId: '',
+    phone: '', ticketId: '', email: '',
   ),
       );
 

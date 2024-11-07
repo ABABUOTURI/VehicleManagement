@@ -17,13 +17,13 @@ class ParkingSlot extends HiveObject {
   DateTime? checkOutTime;
 
   @HiveField(4)
-  String? vehicleDetails; // Optional field to store vehicle info if needed
+  String? vehicleDetails;
 
   @HiveField(5)
-  String? ownerName; // Optional field for driver's name if needed
+  String? ownerName;
 
   @HiveField(6)
-  DateTime? addedTime; // Property to track when the slot was added
+  DateTime? addedTime;
 
   ParkingSlot({
     required this.slotId,

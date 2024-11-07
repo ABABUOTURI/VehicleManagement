@@ -3,33 +3,35 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:vehicle/models/vehicle.dart';
 import 'package:vehicle/models/parking_slot.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math'; // For generating unique ticket ID
 
 class ParkingVehicleRegistrationPage extends StatefulWidget {
-  const ParkingVehicleRegistrationPage({super.key});
+  final int assignedSlotId; // Receive the assigned slot ID
+  final String userEmail; // Receive the logged-in user's email
+
+  const ParkingVehicleRegistrationPage({
+    super.key,
+    required this.assignedSlotId,
+    required this.userEmail, // Add user email parameter
+  });
 
   @override
   _ParkingVehicleRegistrationPageState createState() =>
       _ParkingVehicleRegistrationPageState();
 }
 
-class _ParkingVehicleRegistrationPageState
-    extends State<ParkingVehicleRegistrationPage> {
+class _ParkingVehicleRegistrationPageState extends State<ParkingVehicleRegistrationPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _driverNameController = TextEditingController();
   final TextEditingController _driverPhoneController = TextEditingController();
   final TextEditingController _vehicleTypeController = TextEditingController();
   final TextEditingController _licensePlateController = TextEditingController();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-    _fetchAvailableSlots();
-  }
-
-  // Method to fetch available parking slots from Hive
-  Future<void> _fetchAvailableSlots() async {
-    // Implementation to fetch parking slots if needed for other operations
   }
 
   // Method to register a vehicle
@@ -38,8 +40,8 @@ class _ParkingVehicleRegistrationPageState
       // Generate a unique ticket ID
       String ticketId = _generateUniqueTicketId();
 
-      // Assume a slot ID is assigned automatically (for example, based on business logic)
-      int assignedSlotId = 1; // Replace with actual logic for selecting a slot
+      // Get the assigned slot ID from the widget
+      int assignedSlotId = widget.assignedSlotId;
 
       // Create new Vehicle object
       Vehicle newVehicle = Vehicle(
@@ -50,7 +52,8 @@ class _ParkingVehicleRegistrationPageState
         timestamp: DateTime.now(),
         licensePlate: _licensePlateController.text,
         vehicleColor: '',
-        ticketId: ticketId, // Store the unique ticket ID in the vehicle object
+        ticketId: ticketId,
+        email: widget.userEmail, // Save the user's email
       );
 
       // Save vehicle to Hive
@@ -59,19 +62,66 @@ class _ParkingVehicleRegistrationPageState
 
       // Mark the parking slot as occupied
       var parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
-      ParkingSlot? selectedParkingSlot = parkingSlotBox.values.firstWhere(
-          (slot) => slot.slotId == assignedSlotId,
-          orElse: () => null!);
-      selectedParkingSlot.isOccupied = true;
-      parkingSlotBox.put(assignedSlotId, selectedParkingSlot);
+      ParkingSlot? selectedParkingSlot = parkingSlotBox.get(assignedSlotId);
 
-      // Clear form
-      _clearForm();
+      if (selectedParkingSlot != null) {
+        // Check if the slot is already occupied
+        if (!selectedParkingSlot.isOccupied) {
+          // Mark as occupied
+          selectedParkingSlot.isOccupied = true;
+          selectedParkingSlot.checkInTime = DateTime.now(); // Set check-in time
+          selectedParkingSlot.ownerName = _driverNameController.text; // Set owner name
+          selectedParkingSlot.vehicleDetails = newVehicle.vehicleType; // Set vehicle details
 
-      // Show confirmation with the unique ticket ID
-      _showConfirmationDialog(ticketId);
+          // Save updated parking slot to Hive
+          await parkingSlotBox.put(assignedSlotId, selectedParkingSlot);
 
-      // Update the parking slot UI color (automatic through ValueListenableBuilder)
+          // Update Firestore for the corresponding parking slot
+          await _firestore
+              .collection('parkingSlots')
+              .doc(assignedSlotId.toString())
+              .set(
+            {
+              'slotId': selectedParkingSlot.slotId,
+              'isOccupied': selectedParkingSlot.isOccupied,
+              'checkInTime': selectedParkingSlot.checkInTime?.toIso8601String(),
+              'checkOutTime': selectedParkingSlot.checkOutTime?.toIso8601String(),
+              'vehicleDetails': selectedParkingSlot.vehicleDetails,
+              'ownerName': selectedParkingSlot.ownerName,
+              'addedTime': selectedParkingSlot.addedTime?.toIso8601String(),
+            },
+            SetOptions(merge: true),
+          );
+
+          // Save ticket information to Firestore
+          await _firestore.collection('parkingTickets').doc(ticketId).set({
+            'ticketId': ticketId,
+            'slotId': assignedSlotId,
+            'vehicleType': newVehicle.vehicleType,
+            'licensePlate': newVehicle.licensePlate,
+            'ownerName': newVehicle.driverName,
+            'email': widget.userEmail, // Save the user's email
+            'timestamp': DateTime.now().toIso8601String(),
+            'isPaid': false, // Initial payment status
+          });
+
+          // Clear form
+          _clearForm();
+
+          // Show confirmation with the unique ticket ID
+          _showConfirmationDialog(ticketId);
+        } else {
+          // Handle the case where the slot is already occupied
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Selected parking slot is already occupied!')),
+          );
+        }
+      } else {
+        // Handle the case where the slot is not found
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selected parking slot not found!')),
+        );
+      }
     }
   }
 
@@ -87,35 +137,39 @@ class _ParkingVehicleRegistrationPageState
     _driverPhoneController.clear();
     _vehicleTypeController.clear();
     _licensePlateController.clear();
-    setState(() {
-      // Reset state if needed
-    });
   }
 
   // Confirmation Dialog with print ticket option
   void _showConfirmationDialog(String ticketId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Vehicle Registered Successfully"),
-        content: Text("Your ticket ID is $ticketId.\nDo you want to print the parking ticket?"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _printTicket();
-            },
-            child: const Text("Yes"),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text("No"),
-          ),
-        ],
-      ),
-    );
+    if (!mounted) return; // Check if the widget is still mounted
+
+    try {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Vehicle Registered Successfully"),
+          content: Text(
+              "Your ticket ID is $ticketId.\nDo you want to print the parking ticket?"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close the dialog
+                _printTicket(); // Call the print ticket function
+              },
+              child: const Text("Yes"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Just dismiss the dialog
+              },
+              child: const Text("No"),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      print("Error displaying confirmation dialog: $e"); // Log the error
+    }
   }
 
   // Dummy method for printing ticket

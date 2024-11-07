@@ -44,7 +44,7 @@ class _HiveAdminPageState extends State<HiveAdminPage> {
           timestamp: DateTime.now(),
           phone: _phoneController.text.isNotEmpty ? _phoneController.text : 'N/A',
           slotId: widget.slot?.slotId ?? 0,
-          vehicleColor: _vehicleColorController.text.isNotEmpty ? _vehicleColorController.text : 'Unknown', ticketId: '',
+          vehicleColor: _vehicleColorController.text.isNotEmpty ? _vehicleColorController.text : 'Unknown', ticketId: '', email: '',
         );
 
         // Add the vehicle to the vehicles box

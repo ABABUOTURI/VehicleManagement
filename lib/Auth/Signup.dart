@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
 import 'package:hive/hive.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vehicle/Auth/login.dart';
-import 'package:vehicle/models/user.dart' as local_user;  // Alias for your local User model
+import 'package:vehicle/models/user.dart'
+    as local_user; // Alias for your local User model
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -15,7 +17,8 @@ class _SignupPageState extends State<SignupPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();  // New Confirm Password Controller
+  final TextEditingController _confirmPasswordController =
+      TextEditingController(); // New Confirm Password Controller
   final TextEditingController _nameController = TextEditingController();
   String _selectedRole = 'Driver'; // Default role
   bool _isLoading = false;
@@ -24,12 +27,13 @@ class _SignupPageState extends State<SignupPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();  // Dispose the confirm password controller
+    _confirmPasswordController
+        .dispose(); // Dispose the confirm password controller
     _nameController.dispose();
     super.dispose();
   }
 
-  // Sign up method using Hive for local storage
+  // Sign up method using Firebase Authentication and Hive for local storage
   Future<void> _signup() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -48,19 +52,28 @@ class _SignupPageState extends State<SignupPage> {
           return;
         }
 
-        // Store user details in Hive
-        var userBox = await Hive.openBox<local_user.User>('users');  // Open the box for 'User' objects
+        // Register the user with Firebase Authentication
+        UserCredential userCredential =
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
+        // Store user details in Hive for local persistence
+        var userBox = await Hive.openBox<local_user.User>(
+            'users'); // Open the box for 'User' objects
         var user = local_user.User(
           email: _emailController.text,
           name: _nameController.text,
           role: _selectedRole,
-          password: _passwordController.text,  // Store the password
+          password: _passwordController
+              .text, // Consider hashing the password for security
         );
-        userBox.put(_emailController.text, user);  // Store user by email as the key
+        userBox.put(
+            _emailController.text, user); // Store user by email as the key
 
         // Show success pop-up alert after data is stored in Hive
         _showSuccessDialog();
-
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Signup failed: $e')),
@@ -80,11 +93,12 @@ class _SignupPageState extends State<SignupPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Signup Successful'),
-          content: const Text('Your data has been successfully stored.'),
+          content: const Text(
+              'Your account has been successfully created and stored locally.'),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();  // Close dialog
+                Navigator.of(context).pop(); // Close dialog
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => LoginPage()),
@@ -116,7 +130,6 @@ class _SignupPageState extends State<SignupPage> {
                   color: Color(0xFFDEAF4B),
                 ),
                 const SizedBox(height: 10),
-
                 const Text(
                   'Create your account',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -134,7 +147,8 @@ class _SignupPageState extends State<SignupPage> {
                     contentPadding: const EdgeInsets.symmetric(
                         vertical: 10.0, horizontal: 20.0),
                   ),
-                  validator: RequiredValidator(errorText: 'Name is required').call,
+                  validator:
+                      RequiredValidator(errorText: 'Name is required').call,
                 ),
                 const SizedBox(height: 16),
 
@@ -170,7 +184,9 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                   validator: MultiValidator([
                     RequiredValidator(errorText: 'Password is required'),
-                    MinLengthValidator(6, errorText: 'Password must be at least 6 characters long'),
+                    MinLengthValidator(6,
+                        errorText:
+                            'Password must be at least 6 characters long'),
                   ]).call,
                   obscureText: true,
                 ),
@@ -223,14 +239,15 @@ class _SignupPageState extends State<SignupPage> {
                     ? const Center(child: CircularProgressIndicator())
                     : ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF63D1F6), // Background color of the button
+                          backgroundColor: const Color(
+                              0xFF63D1F6), // Background color of the button
                           padding: const EdgeInsets.symmetric(
                               vertical: 16.0, horizontal: 40.0),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: _signup,  // Call _signup on tap
+                        onPressed: _signup, // Call _signup on tap
                         child: const Text(
                           'Sign Up',
                           style: TextStyle(

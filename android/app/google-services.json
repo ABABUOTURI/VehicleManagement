@@ -1,21 +1,40 @@
 {
   "project_info": {
-    "project_number": "1084093037838",
-    "project_id": "vehicleparking-510b5",
-    "storage_bucket": "vehicleparking-510b5.appspot.com"
+    "project_number": "939643688007",
+    "project_id": "friday-955d2",
+    "storage_bucket": "friday-955d2.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1084093037838:android:14c0d6e488c17cb4b82b5f",
+        "mobilesdk_app_id": "1:939643688007:android:7f600d20093bca7b180d62",
         "android_client_info": {
-          "package_name": "com.example.vehicle"
+          "package_name": "com.cars.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCzM22hjlspA4EpTdMeG9tTBt9POnVJ59I"
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:c795a898d620b4d7180d62",
+        "android_client_info": {
+          "package_name": "com.example.fireconnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
         }
       ],
       "services": {
