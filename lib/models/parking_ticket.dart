@@ -17,13 +17,13 @@ class ParkingTicket {
   final int slotId;
 
   @HiveField(4)
-  final DateTime issuedAt;
+  late final DateTime issuedAt;
 
   @HiveField(5)
   final DateTime? paidAt; // Nullable field for when the ticket was paid
 
   @HiveField(6)
-  final DateTime? checkOutTime; // Added to track check out time
+  late final DateTime? checkOutTime; // Added to track check out time
 
   @HiveField(7)
   final String ownerName; // Added to track owner name

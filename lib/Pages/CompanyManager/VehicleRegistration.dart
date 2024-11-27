@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:vehicle/models/parking_slot.dart';
 import 'package:vehicle/models/vehicle.dart'; // Ensure Vehicle model is imported
 
 class VehicleRegistrationPage extends StatefulWidget {
-  const VehicleRegistrationPage({super.key});
+  const VehicleRegistrationPage({super.key, required ParkingSlot parkingSlot});
 
   @override
   _VehicleRegistrationPageState createState() =>

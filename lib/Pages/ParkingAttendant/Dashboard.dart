@@ -105,17 +105,17 @@ class _ParkingAttendantDashboardState extends State<ParkingAttendantDashboard> {
                   );
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.notifications),
-                title: const Text('Notification Settings'),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => ParkingAttendantNotificationsPage()),
-                  );
-                },
-              ),
+              //ListTile(
+                //leading: const Icon(Icons.notifications),
+                //title: const Text('Notification Settings'),
+                //onTap: () {
+                  //Navigator.push(
+                    //context,
+                    //MaterialPageRoute(
+                      //  builder: (context) => ParkingAttendantNotificationsPage()),
+                  //);
+                //},
+              //),
             ],
           ),
         ),

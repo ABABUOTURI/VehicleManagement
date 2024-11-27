@@ -163,16 +163,16 @@ class _DriverDashboardState extends State<DriverDashboard> {
               );
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.payment),
-            title: const Text('Payment'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => Payment()),
-              );
-            },
-          ),
+          //ListTile(
+            //leading: const Icon(Icons.payment),
+            //title: const Text('Payment'),
+            //onTap: () {
+              //Navigator.push(
+                //context,
+               // MaterialPageRoute(builder: (context) => Payment()),
+             // );
+           // },
+         // ),
           ListTile(
             leading: const Icon(Icons.receipt),
             title: const Text('Receipt'),

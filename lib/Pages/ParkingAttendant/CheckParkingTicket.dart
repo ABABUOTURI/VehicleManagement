@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ParkingTicket model class
@@ -20,8 +18,8 @@ class ParkingTicket {
     required this.vehicleType,
     required this.slotId,
     required this.isPaid,
-    this.checkOutTime, // Nullable parameter
-    this.issuedAt, // Nullable parameter
+    this.checkOutTime,
+    this.issuedAt,
   });
 }
 
@@ -61,11 +59,10 @@ class _CheckParkingTicketsPageState extends State<CheckParkingTicketsPage> {
           slotId: data['slotId'],
           isPaid: data['isPaid'] ?? false,
           checkOutTime: data['checkOutTime'] != null
-              ? DateTime.tryParse(
-                  data['checkOutTime']) // Use tryParse for safety
+              ? DateTime.tryParse(data['checkOutTime'])
               : null,
           issuedAt: data['issuedAt'] != null
-              ? DateTime.tryParse(data['issuedAt']) // Use tryParse for safety
+              ? DateTime.tryParse(data['issuedAt'])
               : null,
         );
       }).toList();
@@ -80,32 +77,6 @@ class _CheckParkingTicketsPageState extends State<CheckParkingTicketsPage> {
         loading = false; // Stop loading
       });
     }
-  }
-
-  // Method to accept checkout
-  Future<void> _acceptCheckout(ParkingTicket ticket) async {
-    ticket.isPaid = true; // Mark ticket as paid
-    ticket.checkOutTime = DateTime.now(); // Set the checkout time
-
-    // Update the ticket in Firestore
-    await _firestore.collection('parkingTickets').doc(ticket.ticketNumber).set({
-      'isPaid': ticket.isPaid,
-      'checkOutTime': ticket.checkOutTime?.toIso8601String(),
-    }, SetOptions(merge: true));
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Checkout accepted.')),
-    );
-    setState(() {
-      tickets.remove(ticket); // Remove the ticket from the list
-    });
-  }
-
-  // Method to deny checkout
-  void _denyCheckout(ParkingTicket ticket) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Checkout denied.')),
-    );
   }
 
   @override
@@ -143,12 +114,12 @@ class _CheckParkingTicketsPageState extends State<CheckParkingTicketsPage> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'Owner Name: ${ticket.ownerName}', // Display owner's name
+                            'Owner Name: ${ticket.ownerName}',
                             style: const TextStyle(fontSize: 16),
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'Status: ${ticket.isPaid ? 'Paid' : 'Unpaid'}',
+                            'Status: ${ticket.isPaid ? 'Paid & Checked Out' : 'Unpaid'}',
                             style: TextStyle(
                               fontSize: 16,
                               color: ticket.isPaid ? Colors.green : Colors.red,
@@ -164,40 +135,16 @@ class _CheckParkingTicketsPageState extends State<CheckParkingTicketsPage> {
                             'Parking Slot: ${ticket.slotId}',
                             style: const TextStyle(fontSize: 16),
                           ),
-                          const SizedBox(height: 16),
-                          // Buttons for Accept and Deny Checkout
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              ElevatedButton(
-                                onPressed: () => _acceptCheckout(ticket),
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 15.0),
-                                  backgroundColor: Colors.green,
-                                  textStyle:
-                                      const TextStyle(color: Colors.white),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text('Accept Checkout'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () => _denyCheckout(ticket),
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 15.0),
-                                  backgroundColor: Colors.red,
-                                  textStyle:
-                                      const TextStyle(color: Colors.white),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text('Deny Checkout'),
-                              ),
-                            ],
+                          const SizedBox(height: 10),
+                          Text(
+                            'Issued At: ${ticket.issuedAt != null ? ticket.issuedAt!.toLocal().toString() : 'N/A'}',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Check-Out Time: ${ticket.checkOutTime != null ? ticket.checkOutTime!.toLocal().toString() : 'Not Checked Out'}',
+                            style: const TextStyle(
+                                fontSize: 16, color: Colors.grey),
                           ),
                         ],
                       ),
