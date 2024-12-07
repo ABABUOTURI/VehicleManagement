@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:vehicle/models/parking_slot.dart';
-import 'package:vehicle/Pages/Driver/DRiverVehicleRegistration.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vehicle/models/parking_slot.dart';
+import 'package:vehicle/Pages/Driver/DriverVehicleRegistration.dart';
 
 class ParkingSlotsPage extends StatefulWidget {
   const ParkingSlotsPage({super.key});
@@ -13,23 +11,13 @@ class ParkingSlotsPage extends StatefulWidget {
 }
 
 class _ParkingSlotsPageState extends State<ParkingSlotsPage> {
-  late Box<ParkingSlot> parkingSlotBox;
-  List<ParkingSlot> parkingSlots = [];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  List<ParkingSlot> parkingSlots = [];
 
   @override
   void initState() {
     super.initState();
-    _initializeBox();
-    _syncWithFirestore(); // Sync Firestore data with local Hive storage
-  }
-
-  Future<void> _initializeBox() async {
-    parkingSlotBox = await Hive.openBox<ParkingSlot>('parkingSlots');
-    _fetchParkingSlots();
-
-    // Listen for changes in the Hive box and refresh the state
-    parkingSlotBox.listenable().addListener(_fetchParkingSlots);
+    _syncWithFirestore();
   }
 
   // Sync parking slots with Firestore
@@ -38,45 +26,53 @@ class _ParkingSlotsPageState extends State<ParkingSlotsPage> {
       QuerySnapshot<Map<String, dynamic>> snapshot =
           await _firestore.collection('parkingSlots').get();
 
-      for (var doc in snapshot.docs) {
-        var data = doc.data();
-        ParkingSlot slot = ParkingSlot(
-          slotId: data['slotId'] ?? 0,
-          isOccupied: data['isOccupied'] ?? false,
-          checkInTime: data['checkInTime'] != null
-              ? DateTime.parse(data['checkInTime'])
-              : null,
-          checkOutTime: data['checkOutTime'] != null
-              ? DateTime.parse(data['checkOutTime'])
-              : null,
-          vehicleDetails: data['vehicleDetails'],
-          ownerName: data['ownerName'],
-          addedTime: data['addedTime'] != null
-              ? DateTime.parse(data['addedTime'])
-              : null,
-        );
+      setState(() {
+        parkingSlots = snapshot.docs.map((doc) {
+          var data = doc.data();
+          return ParkingSlot(
+            slotId: data['slotId'] ?? 0,
+            isOccupied: data['isOccupied'] ?? false,
+            checkInTime: data['checkInTime'] != null
+                ? DateTime.parse(data['checkInTime'])
+                : null,
+            checkOutTime: data['checkOutTime'] != null
+                ? DateTime.parse(data['checkOutTime'])
+                : null,
+            vehicleDetails: data['vehicleDetails'],
+            ownerName: data['ownerName'],
+            addedTime: data['addedTime'] != null
+                ? DateTime.parse(data['addedTime'])
+                : null,
+          );
+        }).toList();
+      });
 
-        // Save or update the parking slot in Hive
-        await parkingSlotBox.put(slot.slotId, slot);
-      }
       print('Parking slots synchronized with Firestore');
     } catch (e) {
       print('Failed to sync with Firestore: $e');
     }
   }
 
-  // Fetch parking slots from Hive
-  void _fetchParkingSlots() {
+  // Handle checkout and make the slot free
+  Future<void> _handleCheckOut(ParkingSlot slot) async {
     setState(() {
-      parkingSlots = parkingSlotBox.values.toList();
+      slot.isOccupied = false; // Free the slot
+      slot.checkOutTime = DateTime.now(); // Set checkout time
     });
-  }
 
-  @override
-  void dispose() {
-    // Clean up the Hive listener when the widget is disposed
-    parkingSlotBox.listenable().removeListener(_fetchParkingSlots);
-    super.dispose();
+    // Update the parking slot in Firestore
+    await _firestore
+        .collection('parkingSlots')
+        .doc(slot.slotId.toString())
+        .update({
+      'isOccupied': false,
+      'checkOutTime': slot.checkOutTime?.toIso8601String(),
+    });
+
+    // Show a message to the user
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Checked out from Slot ${slot.slotId}')),
+    );
   }
 
   @override
@@ -139,29 +135,26 @@ class _ParkingSlotsPageState extends State<ParkingSlotsPage> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => ParkingVehicleRegistrationPage(
-                              assignedSlotId:
-                                  slot.slotId, userEmail: '',), // Pass the assigned slot ID
+                            assignedSlotId: slot.slotId,
+                            userEmail: '',
+                          ), // Pass the assigned slot ID
                         ),
                       );
                       if (result == true) {
-                        // Set slot as occupied and save to Hive
+                        // Set slot as occupied
                         slot.isOccupied = true;
-                        await parkingSlotBox.put(slot.slotId, slot);
-                        _fetchParkingSlots();
 
-                        // Also update Firestore with new slot status
+                        // Update Firestore with new slot status
                         await _firestore
                             .collection('parkingSlots')
                             .doc(slot.slotId.toString())
-                            .set({
-                          'slotId': slot.slotId,
+                            .update({
                           'isOccupied': slot.isOccupied,
                           'checkInTime': DateTime.now().toIso8601String(),
-                          'checkOutTime': slot.checkOutTime?.toIso8601String(),
-                          'vehicleDetails': slot.vehicleDetails,
-                          'ownerName': slot.ownerName,
-                          'addedTime': slot.addedTime?.toIso8601String(),
-                        }, SetOptions(merge: true));
+                        });
+
+                        // Refresh the slots list
+                        _syncWithFirestore();
                       }
                     } else {
                       _showSlotOccupiedMessage();
@@ -240,9 +233,10 @@ class ParkingSlotWidget extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Slot ${slot.slotId}',
-              style: const TextStyle(
-                color: Colors.black,
+              style: TextStyle(
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
+                color: isBooked ? Colors.white : Colors.black,
               ),
             ),
           ],

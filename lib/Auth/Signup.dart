@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
-import 'package:hive/hive.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Add Firestore import
 import 'package:vehicle/Auth/login.dart';
-import 'package:vehicle/models/user.dart'
-    as local_user; // Alias for your local User model
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -33,7 +31,7 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
-  // Sign up method using Firebase Authentication and Hive for local storage
+  // Sign up method using Firebase Authentication and Firestore for storage
   Future<void> _signup() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -59,20 +57,28 @@ class _SignupPageState extends State<SignupPage> {
           password: _passwordController.text.trim(),
         );
 
-        // Store user details in Hive for local persistence
-        var userBox = await Hive.openBox<local_user.User>(
-            'users'); // Open the box for 'User' objects
-        var user = local_user.User(
-          email: _emailController.text,
-          name: _nameController.text,
-          role: _selectedRole,
-          password: _passwordController
-              .text, // Consider hashing the password for security
-        );
-        userBox.put(
-            _emailController.text, user); // Store user by email as the key
+        // Save user details in Firestore
+        FirebaseFirestore firestore = FirebaseFirestore.instance;
+        await firestore.collection('users').doc(userCredential.user?.uid).set({
+          'email': _emailController.text.trim(),
+          'name': _nameController.text.trim(),
+          'role': _selectedRole,
+          'password': _passwordController.text.trim(), // Optionally, hash the password for security
+        });
 
-        // Show success pop-up alert after data is stored in Hive
+        // Role check: You can check the role and take action accordingly
+        if (_selectedRole == 'Driver') {
+          // Specific logic for Driver
+          print('User is a Driver');
+        } else if (_selectedRole == 'Company Manager') {
+          // Specific logic for Company Manager
+          print('User is a Company Manager');
+        } else if (_selectedRole == 'Parking Attendant') {
+          // Specific logic for Parking Attendant
+          print('User is a Parking Attendant');
+        }
+
+        // Show success pop-up alert after data is stored in Firestore
         _showSuccessDialog();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -94,7 +100,7 @@ class _SignupPageState extends State<SignupPage> {
         return AlertDialog(
           title: const Text('Signup Successful'),
           content: const Text(
-              'Your account has been successfully created and stored locally.'),
+              'Your account has been successfully created and stored in Firestore.'),
           actions: [
             TextButton(
               onPressed: () {
@@ -163,7 +169,7 @@ class _SignupPageState extends State<SignupPage> {
                     contentPadding: const EdgeInsets.symmetric(
                         vertical: 10.0, horizontal: 20.0),
                   ),
-                  validator: MultiValidator([
+                  validator: MultiValidator([ 
                     RequiredValidator(errorText: 'Email is required'),
                     EmailValidator(errorText: 'Enter a valid email'),
                   ]).call,
@@ -182,7 +188,7 @@ class _SignupPageState extends State<SignupPage> {
                     contentPadding: const EdgeInsets.symmetric(
                         vertical: 10.0, horizontal: 20.0),
                   ),
-                  validator: MultiValidator([
+                  validator: MultiValidator([ 
                     RequiredValidator(errorText: 'Password is required'),
                     MinLengthValidator(6,
                         errorText:
