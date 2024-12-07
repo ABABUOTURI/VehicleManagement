@@ -1,4 +1,5 @@
 pluginManagement {
+    // Load Flutter SDK path from the local.properties file
     def flutterSdkPath = {
         def properties = new Properties()
         file("local.properties").withInputStream { properties.load(it) }
@@ -7,22 +8,30 @@ pluginManagement {
         return flutterSdkPath
     }()
 
+    // Include Flutter tools for the build
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
+    // Repositories for plugin resolution
     repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
+        google()  // Google's Maven repository for Android dependencies
+        mavenCentral()  // Maven Central for general dependencies
+        gradlePluginPortal()  // Gradle plugin portal for plugin dependencies
     }
 }
 
 plugins {
+    // Flutter plugin loader (no need for version if it's provided by the Flutter SDK)
     id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+
+    // Android application plugin (use version 8.1.0 which is compatible with your setup)
     id "com.android.application" version "8.1.0" apply false
-    // START: FlutterFire Configuration
+
+    // Firebase services plugin (for integrating Google services such as Firebase)
     id "com.google.gms.google-services" version "4.3.15" apply false
-    // END: FlutterFire Configuration
+
+    // Kotlin plugin (use the version compatible with your setup, 1.8.22 is fine)
     id "org.jetbrains.kotlin.android" version "1.8.22" apply false
 }
 
+// Include the app module
 include ":app"

@@ -7,8 +7,8 @@ plugins {
 }
 
 dependencies {
-  // Import the Firebase BoM
-  implementation platform('com.google.firebase:firebase-bom:33.4.0')
+    // Import the Firebase BoM
+    implementation platform('com.google.firebase:firebase-bom:33.4.0')
 }
 
 android {
